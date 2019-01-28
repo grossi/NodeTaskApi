@@ -1,92 +1,80 @@
 
 const Joi = require('joi');
+const mongoose = require('mongoose');
 const express = require('express');
+const TaskModel = require('./modules/task.js')
+
 const app = express();
 
 app.use(express.json());
 
-let tasks = [
-	{ 
-		id:1,
-		name: 'Task 1'
-	},
-	{ 
-		id:2,
-		name: 'Task 2'
-	},
-	{ 
-		id:1,
-		name: 'Task 3'
-	},
-];
-
 app.get('/', (req, res) => {
-	res.send('Hello World!');
+	//
 });
 
 app.get('/api/tasks', (req, res) => {
-	res.send(tasks);
+	TaskModel.find({}, (err, tasks) => {
+		res.send(tasks);
+	});
 });
 
 app.get('/api/tasks/:id', (req, res) => {
-	const task = tasks.find(c => c.id == parseInt(req.params.id));
-	if (!task) {
+	TaskModel.findOne({
+		_id: req.params.id
+	}).then(doc => {
+		res.json(doc);
+	}).catch(err => {
 		res.status(404).send('A task with this ID (' + req.params.id + ') was not found');	
-		return;
-	} 
-	res.send(task);
+	});
 });
 
 app.post('/api/tasks', (req,res) => {
-	const schema = {
-		name: Joi.string().min(2).required()
-	};
 	const { error } = validateTask(req.body);
-
 	if(error) {
 		res.status(400).send(error.details[0].message);
 		return;
 	}
-
     const task = {
-    	id: tasks.length + 1,
-    	name: req.body.name
+    	name: req.body.name,
+    	completed: false
     };
-    tasks.push(task);
-    res.send(task);
+    let model = new TaskModel(task);
+    model.save()
+    	.then(doc => {
+    		if(!doc || doc.length === 0 ) {
+    			return res.status(500).send(doc);
+    		}
+    		res.status(201).send(doc);
+    	})
+    	.catch(err =>{
+    		res.status(500).json(err);
+    	});
 });
 
 app.put('/api/tasks/:id', (req,res) => {
-	const task = tasks.find(c => c.id == parseInt(req.params.id));
-	if (!task) {
-		res.status(404).send('A task with this ID (' + req.params.id + ') was not found');
-		return;
-	}
-
 	const { error } = validateTask(req.body);
-
 	if(error) {
 		res.status(400).send(error.details[0].message);
 		return;
 	}
-
-	task.name = req.body.name;
-	res.send(task);
-    
+	TaskModel.findOneAndUpdate({
+		_id: req.params.id
+	}, req.body, {
+		new: true
+	}).then(doc => {
+		res.json(doc);
+	}).catch(err => {
+		res.status(500).json(err);	
+	});
 });
 
 app.delete('/api/task/:id', (req,res) => {
-	const task = tasks.find(c => c.id == parseInt(req.params.id));
-	if (!task) {
-		res.status(404).send('A task with this ID (' + req.params.id + ') was not found');
-		return;
-	}
-
-	const index = tasks.indexOf(task);
-	tasks.splice(index, 1);
-
-	res.send(task);
-    
+	TaskModel.findByIdAndRemove(req.params.id)
+		.then(doc => {
+			res.json(doc);
+		}).catch(err => {
+			res.status(500).json(err);	
+		});
 });
 
 function validateTask(task) {
@@ -98,6 +86,6 @@ function validateTask(task) {
 }
 
 
-const port = process.env.PORT || 3000
+const port = process.env.PORT || 3000;
 
 app.listen(port, () => console.log('Listening on port ' + port));
