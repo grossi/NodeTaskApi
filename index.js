@@ -1,10 +1,17 @@
 const Joi = require('joi');
 const express = require('express');
 const task = require('./routes/task.js');
+const mongoose = require('mongoose');
 
 const app = express();
 
 app.use(express.json());
+
+mongoose.connect('mongodb://localhost/test');
+
+let db = mongoose.connection;
+
+db.on('error', console.error.bind(console, 'connection error:'));
 
 app.get('/', (req, res) => {
 	res.json({message: "Welcome to Task API"});
@@ -22,3 +29,5 @@ app.route("/api/tasks/:id")
 const port = process.env.PORT || 3000;
 
 app.listen(port, () => console.log('Listening on port ' + port));
+
+module.exports = app;
